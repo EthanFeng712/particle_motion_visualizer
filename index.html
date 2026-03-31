@@ -3,490 +3,575 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>质点运动轨迹可视化 | Particle Motion Visualizer</title>
+    <title>质点运动轨迹分析系统</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Inter', sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
-        .glass-panel { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.2); }
-        .input-field { transition: all 0.3s ease; }
-        .input-field:focus { transform: translateY(-2px); box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1); }
-        .btn-primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); transition: all 0.3s ease; }
-        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 10px 20px -5px rgba(102, 126, 234, 0.4); }
-        .trajectory-line { stroke-dasharray: 1000; stroke-dashoffset: 1000; animation: draw 3s ease-out forwards; }
-        @keyframes draw { to { stroke-dashoffset: 0; } }
+        body { font-family: 'Inter', sans-serif; background: #0f172a; color: #e2e8f0; }
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(148, 163, 184, 0.1);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        .input-field {
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid rgba(71, 85, 105, 0.5);
+            transition: all 0.3s ease;
+        }
+        .input-field:focus {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+            outline: none;
+        }
+        .gradient-text {
+            background: linear-gradient(135deg, #60a5fa 0%, #a78bfa 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .metric-card {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%);
+            border-left: 3px solid #3b82f6;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px -5px rgba(59, 130, 246, 0.4);
+        }
+        .btn-secondary {
+            background: rgba(71, 85, 105, 0.5);
+            transition: all 0.2s;
+        }
+        .btn-secondary:hover {
+            background: rgba(71, 85, 105, 0.8);
+        }
+        #trajectoryPlot, #velocityPlot, #accelerationPlot {
+            width: 100%;
+            height: 100%;
+        }
+        .preset-btn {
+            background: rgba(30, 41, 59, 0.8);
+            border: 1px solid rgba(71, 85, 105, 0.5);
+            transition: all 0.2s;
+        }
+        .preset-btn:hover {
+            border-color: #3b82f6;
+            background: rgba(59, 130, 246, 0.1);
+        }
+        .preset-btn.active {
+            background: rgba(59, 130, 246, 0.2);
+            border-color: #3b82f6;
+            color: #60a5fa;
+        }
     </style>
+<base target="_blank">
 </head>
-<body class="min-h-screen p-4 md:p-8">
-    <div class="max-w-7xl mx-auto">
-        <!-- 标题区域 -->
-        <div class="text-center mb-8 text-white">
-            <h1 class="text-4xl md:text-5xl font-bold mb-2">🚀 质点运动轨迹可视化</h1>
-            <p class="text-lg opacity-90">Particle Trajectory Visualizer: r(t) = x(t)i + y(t)j + z(t)k</p>
-        </div>
+<body class="min-h-screen overflow-x-hidden">
 
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <!-- 左侧控制面板 -->
-            <div class="glass-panel rounded-2xl p-6 shadow-2xl lg:col-span-1">
-                <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
-                    <span class="mr-2">⚙️</span> 参数设置
+    <!-- Header -->
+    <header class="glass-panel sticky top-0 z-50 border-b border-slate-700/50">
+        <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-xl">
+                    r(t)
+                </div>
+                <div>
+                    <h1 class="text-2xl font-bold gradient-text">质点运动轨迹分析</h1>
+                    <p class="text-xs text-slate-400">Particle Motion Trajectory Analysis</p>
+                </div>
+            </div>
+            <div class="flex gap-3">
+                <button onclick="resetView()" class="btn-secondary px-4 py-2 rounded-lg text-sm font-medium text-slate-300">
+                    重置视图
+                </button>
+                <button onclick="exportData()" class="btn-primary px-4 py-2 rounded-lg text-sm font-medium text-white shadow-lg">
+                    导出数据
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-6 py-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <!-- Left Panel: Controls -->
+        <div class="lg:col-span-4 space-y-6">
+            
+            <!-- Input Section -->
+            <div class="glass-panel rounded-2xl p-6 space-y-4">
+                <h2 class="text-lg font-semibold text-slate-200 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
+                    位置矢量 r(t)
                 </h2>
-
-                <!-- 预设选择 -->
-                <div class="mb-6">
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">预设运动模式</label>
-                    <select id="preset" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white" onchange="loadPreset()">
-                        <option value="">-- 选择预设 --</option>
-                        <option value="helix">螺旋线 (Helix)</option>
-                        <option value="projectile">抛体运动 (Projectile)</option>
-                        <option value="lissajous">利萨如曲线 (Lissajous)</option>
-                        <option value="torus">环面螺旋 (Torus Knot)</option>
-                        <option value="sphere">球面螺旋 (Spherical)</option>
-                    </select>
-                </div>
-
-                <!-- 方程输入 -->
-                <div class="space-y-4 mb-6">
-                    <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-1">x(t) =</label>
-                        <input type="text" id="xFunc" class="input-field w-full p-3 border border-gray-300 rounded-lg font-mono text-sm" value="cos(t)" placeholder="例如: cos(t)">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-1">y(t) =</label>
-                        <input type="text" id="yFunc" class="input-field w-full p-3 border border-gray-300 rounded-lg font-mono text-sm" value="sin(t)" placeholder="例如: sin(t)">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-1">z(t) =</label>
-                        <input type="text" id="zFunc" class="input-field w-full p-3 border border-gray-300 rounded-lg font-mono text-sm" value="0.2*t" placeholder="例如: 0.2*t">
-                    </div>
-                </div>
-
-                <!-- 时间范围 -->
-                <div class="grid grid-cols-2 gap-4 mb-6">
-                    <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-1">起始时间</label>
-                        <input type="number" id="tStart" class="w-full p-3 border border-gray-300 rounded-lg" value="0" step="0.1">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-1">结束时间</label>
-                        <input type="number" id="tEnd" class="w-full p-3 border border-gray-300 rounded-lg" value="25.13" step="0.1">
-                    </div>
-                </div>
-
-                <!-- 采样点数 -->
-                <div class="mb-6">
-                    <label class="block text-sm font-semibold text-gray-700 mb-1">采样点数: <span id="pointsValue">1000</span></label>
-                    <input type="range" id="numPoints" class="w-full" min="100" max="5000" value="1000" step="100" oninput="document.getElementById('pointsValue').textContent=this.value">
-                </div>
-
-                <!-- 可视化选项 -->
-                <div class="mb-6">
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">着色方式</label>
-                    <div class="flex gap-2">
-                        <button onclick="setColorMode('time')" class="flex-1 py-2 px-4 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition text-sm font-medium" id="btn-time">时间</button>
-                        <button onclick="setColorMode('velocity')" class="flex-1 py-2 px-4 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 transition text-sm font-medium" id="btn-velocity">速度</button>
-                        <button onclick="setColorMode('acceleration')" class="flex-1 py-2 px-4 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 transition text-sm font-medium" id="btn-acceleration">加速度</button>
-                    </div>
-                </div>
-
-                <div class="mb-6">
-                    <label class="flex items-center space-x-2 cursor-pointer">
-                        <input type="checkbox" id="showVectors" class="w-4 h-4 text-purple-600 rounded" checked>
-                        <span class="text-sm font-medium text-gray-700">显示速度/加速度矢量</span>
-                    </label>
-                </div>
-
-                <!-- 操作按钮 -->
-                <div class="space-y-3">
-                    <button onclick="calculateTrajectory()" class="btn-primary w-full py-4 rounded-xl text-white font-bold text-lg shadow-lg flex items-center justify-center">
-                        <span class="mr-2">🎨</span> 生成轨迹
-                    </button>
-                    <div class="grid grid-cols-2 gap-3">
-                        <button onclick="exportData()" class="py-3 rounded-xl bg-gray-100 text-gray-700 font-semibold hover:bg-gray-200 transition flex items-center justify-center">
-                            <span class="mr-1">💾</span> 导出CSV
-                        </button>
-                        <button onclick="showAnalysis()" class="py-3 rounded-xl bg-gray-100 text-gray-700 font-semibold hover:bg-gray-200 transition flex items-center justify-center">
-                            <span class="mr-1">📊</span> 分析
-                        </button>
-                    </div>
-                </div>
-
-                <!-- 统计信息 -->
-                <div id="stats" class="mt-6 p-4 bg-gray-50 rounded-xl text-sm font-mono text-gray-600 hidden">
-                    <h3 class="font-bold text-gray-800 mb-2">📈 运动统计</h3>
-                    <div id="statsContent"></div>
-                </div>
-            </div>
-
-            <!-- 右侧可视化区域 -->
-            <div class="glass-panel rounded-2xl p-6 shadow-2xl lg:col-span-2">
-                <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-xl font-bold text-gray-800">3D 轨迹视图</h2>
-                    <div class="flex gap-2">
-                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                            <span class="w-2 h-2 bg-green-500 rounded-full mr-2"></span>起点
-                        </span>
-                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                            <span class="w-2 h-2 bg-red-500 rounded-full mr-2"></span>终点
-                        </span>
-                    </div>
-                </div>
-                <div id="plot3d" class="w-full h-[500px] rounded-xl overflow-hidden bg-white"></div>
                 
-                <!-- 分析图表容器 -->
-                <div id="analysisPanel" class="hidden mt-6">
-                    <h3 class="text-lg font-bold text-gray-800 mb-4">运动学分析</h3>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div id="plotVelocity" class="h-[300px] bg-white rounded-xl p-2"></div>
-                        <div id="plotAcceleration" class="h-[300px] bg-white rounded-xl p-2"></div>
+                <div class="space-y-3">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">x(t) 分量</label>
+                        <input type="text" id="inputX" value="cos(t)" class="input-field w-full px-3 py-2 rounded-lg text-sm font-mono text-blue-300" placeholder="例如: cos(t)">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">y(t) 分量</label>
+                        <input type="text" id="inputY" value="sin(t)" class="input-field w-full px-3 py-2 rounded-lg text-sm font-mono text-green-300" placeholder="例如: sin(t)">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">z(t) 分量</label>
+                        <input type="text" id="inputZ" value="0.1*t" class="input-field w-full px-3 py-2 rounded-lg text-sm font-mono text-purple-300" placeholder="例如: 0.1*t">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3 pt-2">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">时间范围 [0, T]</label>
+                        <input type="number" id="inputT" value="20" step="0.1" class="input-field w-full px-3 py-2 rounded-lg text-sm text-slate-200">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">采样点数</label>
+                        <input type="number" id="inputN" value="500" step="50" class="input-field w-full px-3 py-2 rounded-lg text-sm text-slate-200">
+                    </div>
+                </div>
+
+                <button onclick="calculateTrajectory()" class="btn-primary w-full py-3 rounded-lg font-semibold text-white shadow-lg mt-2 flex items-center justify-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    生成轨迹
+                </button>
+            </div>
+
+            <!-- Presets -->
+            <div class="glass-panel rounded-2xl p-6">
+                <h3 class="text-sm font-semibold text-slate-300 mb-3">预设轨迹</h3>
+                <div class="grid grid-cols-2 gap-2">
+                    <button onclick="loadPreset('helix')" class="preset-btn px-3 py-2 rounded-lg text-xs font-medium text-slate-300">螺旋线</button>
+                    <button onclick="loadPreset('lissajous')" class="preset-btn px-3 py-2 rounded-lg text-xs font-medium text-slate-300">利萨如曲线</button>
+                    <button onclick="loadPreset('torus')" class="preset-btn px-3 py-2 rounded-lg text-xs font-medium text-slate-300">环面螺旋</button>
+                    <button onclick="loadPreset('rose')" class="preset-btn px-3 py-2 rounded-lg text-xs font-medium text-slate-300">球面玫瑰线</button>
+                    <button onclick="loadPreset('damped')" class="preset-btn px-3 py-2 rounded-lg text-xs font-medium text-slate-300">阻尼振动</button>
+                    <button onclick="loadPreset('chaos')" class="preset-btn px-3 py-2 rounded-lg text-xs font-medium text-slate-300">混沌轨迹</button>
+                </div>
+            </div>
+
+            <!-- Real-time Metrics -->
+            <div class="glass-panel rounded-2xl p-6 space-y-3">
+                <h3 class="text-sm font-semibold text-slate-300 mb-2">实时参数</h3>
+                <div class="metric-card p-3 rounded-lg">
+                    <div class="text-xs text-slate-400">速度大小 |v|</div>
+                    <div class="text-lg font-mono font-bold text-blue-400" id="metricVelocity">0.00</div>
+                </div>
+                <div class="metric-card p-3 rounded-lg border-l-purple-500">
+                    <div class="text-xs text-slate-400">加速度大小 |a|</div>
+                    <div class="text-lg font-mono font-bold text-purple-400" id="metricAcceleration">0.00</div>
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div class="bg-slate-800/50 p-2 rounded-lg">
+                        <div class="text-[10px] text-slate-500">当前时间 t</div>
+                        <div class="text-sm font-mono text-slate-300" id="metricTime">0.00</div>
+                    </div>
+                    <div class="bg-slate-800/50 p-2 rounded-lg">
+                        <div class="text-[10px] text-slate-500">路径长度 s</div>
+                        <div class="text-sm font-mono text-slate-300" id="metricPath">0.00</div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- 使用说明 -->
-        <div class="mt-8 glass-panel rounded-2xl p-6 shadow-xl">
-            <h3 class="text-lg font-bold text-gray-800 mb-3">📖 使用说明</h3>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600">
-                <div class="p-4 bg-white/50 rounded-lg">
-                    <strong class="text-purple-700">支持的函数:</strong><br>
-                    sin, cos, tan, exp, log, sqrt, abs, pi, e<br>
-                    运算符: + - * / ^
+        <!-- Right Panel: Visualization -->
+        <div class="lg:col-span-8 space-y-6">
+            
+            <!-- 3D Trajectory -->
+            <div class="glass-panel rounded-2xl p-1 h-[500px] relative">
+                <div class="absolute top-4 left-4 z-10 bg-slate-900/80 backdrop-blur px-3 py-1 rounded-full text-xs font-medium text-slate-300 border border-slate-700">
+                    3D 运动轨迹
                 </div>
-                <div class="p-4 bg-white/50 rounded-lg">
-                    <strong class="text-purple-700">示例方程:</strong><br>
-                    螺旋线: cos(t), sin(t), 0.1*t<br>
-                    波浪: t, sin(t), cos(t)
+                <div id="trajectoryPlot"></div>
+            </div>
+
+            <!-- Analysis Charts -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="glass-panel rounded-2xl p-1 h-[300px]">
+                    <div class="absolute top-4 left-4 z-10 bg-slate-900/80 backdrop-blur px-3 py-1 rounded-full text-xs font-medium text-slate-300 border border-slate-700">
+                        速度分量
+                    </div>
+                    <div id="velocityPlot"></div>
                 </div>
-                <div class="p-4 bg-white/50 rounded-lg">
-                    <strong class="text-purple-700">操作提示:</strong><br>
-                    • 鼠标拖拽旋转3D视图<br>
-                    • 滚轮缩放<br>
-                    • 双击重置视角
+                <div class="glass-panel rounded-2xl p-1 h-[300px]">
+                    <div class="absolute top-4 left-4 z-10 bg-slate-900/80 backdrop-blur px-3 py-1 rounded-full text-xs font-medium text-slate-300 border border-slate-700">
+                        加速度分量
+                    </div>
+                    <div id="accelerationPlot"></div>
+                </div>
+            </div>
+
+            <!-- Data Table -->
+            <div class="glass-panel rounded-2xl p-6 overflow-hidden">
+                <h3 class="text-sm font-semibold text-slate-300 mb-4">关键帧数据</h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-xs text-left">
+                        <thead class="text-slate-400 border-b border-slate-700">
+                            <tr>
+                                <th class="pb-2 font-medium">时间 t</th>
+                                <th class="pb-2 font-medium">位置 x</th>
+                                <th class="pb-2 font-medium">位置 y</th>
+                                <th class="pb-2 font-medium">位置 z</th>
+                                <th class="pb-2 font-medium">速度 |v|</th>
+                                <th class="pb-2 font-medium">加速度 |a|</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dataTableBody" class="text-slate-300 font-mono">
+                            <!-- Dynamic content -->
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
-    </div>
+    </main>
 
     <script>
-        let currentData = null;
-        let colorMode = 'time';
+        // Global variables
+        let trajectoryData = null;
+        let animationFrame = null;
+        let currentTimeIndex = 0;
+        let isPlaying = false;
 
-        const presets = {
-            helix: { x: 'cos(t)', y: 'sin(t)', z: '0.2*t', tStart: 0, tEnd: 25.13 },
-            projectile: { x: '20*cos(pi/4)*cos(pi/6)*t', y: '20*cos(pi/4)*sin(pi/6)*t', z: '20*sin(pi/4)*t - 4.9*t^2', tStart: 0, tEnd: 2.9 },
-            lissajous: { x: '2*sin(3*t + pi/4)', y: '3*sin(2*t)', z: '1.5*sin(t + pi/2)', tStart: 0, tEnd: 12.57 },
-            torus: { x: '(3 + cos(3*t))*cos(2*t)', y: '(3 + cos(3*t))*sin(2*t)', z: 'sin(3*t)', tStart: 0, tEnd: 6.28 },
-            sphere: { x: 'sin(t)*cos(3*t)', y: 'sin(t)*sin(3*t)', z: 'cos(t)', tStart: 0, tEnd: 12.57 }
-        };
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            calculateTrajectory();
+        });
 
-        function loadPreset() {
-            const preset = document.getElementById('preset').value;
-            if (presets[preset]) {
-                const p = presets[preset];
-                document.getElementById('xFunc').value = p.x;
-                document.getElementById('yFunc').value = p.y;
-                document.getElementById('zFunc').value = p.z;
-                document.getElementById('tStart').value = p.tStart;
-                document.getElementById('tEnd').value = p.tEnd;
-            }
-        }
-
-        function setColorMode(mode) {
-            colorMode = mode;
-            ['time', 'velocity', 'acceleration'].forEach(m => {
-                const btn = document.getElementById('btn-' + m);
-                if (m === mode) {
-                    btn.className = 'flex-1 py-2 px-4 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition text-sm font-medium';
-                } else {
-                    btn.className = 'flex-1 py-2 px-4 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 transition text-sm font-medium';
-                }
-            });
-            if (currentData) calculateTrajectory();
-        }
-
-        function parseFunction(expr) {
-            return (t) => {
-                try {
-                    const scope = { t: t, pi: Math.PI, e: Math.E };
-                    return math.evaluate(expr, scope);
-                } catch (e) {
-                    throw new Error(`函数解析错误: ${expr}`);
-                }
-            };
-        }
-
-        function calculateTrajectory() {
+        // Parse mathematical expressions
+        function parseExpression(expr, t) {
             try {
-                const xExpr = document.getElementById('xFunc').value;
-                const yExpr = document.getElementById('yFunc').value;
-                const zExpr = document.getElementById('zFunc').value;
-                const tStart = parseFloat(document.getElementById('tStart').value);
-                const tEnd = parseFloat(document.getElementById('tEnd').value);
-                const numPoints = parseInt(document.getElementById('numPoints').value);
-                const showVectors = document.getElementById('showVectors').checked;
-
-                const xFunc = parseFunction(xExpr);
-                const yFunc = parseFunction(yExpr);
-                const zFunc = parseFunction(zExpr);
-
-                // 生成数据
-                const t = [];
-                const x = [], y = [], z = [];
-                const dt = (tEnd - tStart) / (numPoints - 1);
-
-                for (let i = 0; i < numPoints; i++) {
-                    const ti = tStart + i * dt;
-                    t.push(ti);
-                    x.push(xFunc(ti));
-                    y.push(yFunc(ti));
-                    z.push(zFunc(ti));
-                }
-
-                // 计算速度和加速度（数值微分）
-                const vx = numericalDiff(x, dt);
-                const vy = numericalDiff(y, dt);
-                const vz = numericalDiff(z, dt);
-                const vMag = vx.map((v, i) => Math.sqrt(v**2 + vy[i]**2 + vz[i]**2));
-
-                const ax = numericalDiff(vx, dt);
-                const ay = numericalDiff(vy, dt);
-                const az = numericalDiff(vz, dt);
-                const aMag = ax.map((a, i) => Math.sqrt(a**2 + ay[i]**2 + az[i]**2));
-
-                currentData = { t, x, y, z, vx, vy, vz, vMag, ax, ay, az, aMag };
-
-                plot3D(showVectors);
-                updateStats();
-
-            } catch (error) {
-                alert('计算错误: ' + error.message);
+                const scope = { t: t, sin: Math.sin, cos: Math.cos, tan: Math.tan, 
+                               exp: Math.exp, log: Math.log, sqrt: Math.sqrt, 
+                               PI: Math.PI, E: Math.E, abs: Math.abs };
+                return math.evaluate(expr, scope);
+            } catch (e) {
+                console.error('Parse error:', e);
+                return 0;
             }
         }
 
-        function numericalDiff(arr, dt) {
-            const result = [];
-            for (let i = 0; i < arr.length; i++) {
-                if (i === 0) {
-                    result.push((arr[i+1] - arr[i]) / dt);
-                } else if (i === arr.length - 1) {
-                    result.push((arr[i] - arr[i-1]) / dt);
-                } else {
-                    result.push((arr[i+1] - arr[i-1]) / (2 * dt));
-                }
-            }
-            return result;
+        // Numerical differentiation
+        function derivative(func, t, dt = 0.001) {
+            return (func(t + dt) - func(t - dt)) / (2 * dt);
         }
 
-        function plot3D(showVectors) {
-            if (!currentData) return;
+        // Second derivative
+        function secondDerivative(func, t, dt = 0.001) {
+            return (func(t + dt) - 2*func(t) + func(t - dt)) / (dt * dt);
+        }
 
-            const { t, x, y, z, vx, vy, vz, vMag, ax, ay, az, aMag } = currentData;
+        // Calculate trajectory
+        function calculateTrajectory() {
+            const xExpr = document.getElementById('inputX').value;
+            const yExpr = document.getElementById('inputY').value;
+            const zExpr = document.getElementById('inputZ').value;
+            const T = parseFloat(document.getElementById('inputT').value);
+            const N = parseInt(document.getElementById('inputN').value);
 
-            let colors;
-            let colorbarTitle;
-            if (colorMode === 'time') {
-                colors = t;
-                colorbarTitle = 'Time (s)';
-            } else if (colorMode === 'velocity') {
-                colors = vMag;
-                colorbarTitle = 'Velocity (m/s)';
-            } else {
-                colors = aMag;
-                colorbarTitle = 'Acceleration (m/s²)';
+            const dt = T / N;
+            const tValues = [];
+            const xValues = [], yValues = [], zValues = [];
+            const vxValues = [], vyValues = [], vzValues = [];
+            const axValues = [], ayValues = [], azValues = [];
+            const vMagValues = [], aMagValues = [];
+
+            let pathLength = 0;
+            let prevX = 0, prevY = 0, prevZ = 0;
+
+            // Define functions
+            const xFunc = (t) => parseExpression(xExpr, t);
+            const yFunc = (t) => parseExpression(yExpr, t);
+            const zFunc = (t) => parseExpression(zExpr, t);
+
+            for (let i = 0; i <= N; i++) {
+                const t = i * dt;
+                tValues.push(t);
+
+                const x = xFunc(t);
+                const y = yFunc(t);
+                const z = zFunc(t);
+                xValues.push(x);
+                yValues.push(y);
+                zValues.push(z);
+
+                // Velocity (numerical derivative)
+                const vx = derivative(xFunc, t, dt);
+                const vy = derivative(yFunc, t, dt);
+                const vz = derivative(zFunc, t, dt);
+                vxValues.push(vx);
+                vyValues.push(vy);
+                vzValues.push(vz);
+
+                const vMag = Math.sqrt(vx*vx + vy*vy + vz*vz);
+                vMagValues.push(vMag);
+
+                // Acceleration (numerical derivative)
+                const ax = secondDerivative(xFunc, t, dt);
+                const ay = secondDerivative(yFunc, t, dt);
+                const az = secondDerivative(zFunc, t, dt);
+                axValues.push(ax);
+                ayValues.push(ay);
+                azValues.push(az);
+
+                const aMag = Math.sqrt(ax*ax + ay*ay + az*az);
+                aMagValues.push(aMag);
+
+                // Path length
+                if (i > 0) {
+                    const dx = x - prevX;
+                    const dy = y - prevY;
+                    const dz = z - prevZ;
+                    pathLength += Math.sqrt(dx*dx + dy*dy + dz*dz);
+                }
+                prevX = x;
+                prevY = y;
+                prevZ = z;
             }
 
-            const trace1 = {
+            trajectoryData = {
+                t: tValues,
+                x: xValues,
+                y: yValues,
+                z: zValues,
+                vx: vxValues,
+                vy: vyValues,
+                vz: vzValues,
+                ax: axValues,
+                ay: ayValues,
+                az: azValues,
+                vMag: vMagValues,
+                aMag: aMagValues,
+                pathLength: pathLength
+            };
+
+            updatePlots();
+            updateTable();
+            startAnimation();
+        }
+
+        // Update all plots
+        function updatePlots() {
+            if (!trajectoryData) return;
+
+            const { t, x, y, z, vx, vy, vz, ax, ay, az, vMag, aMag } = trajectoryData;
+
+            // 3D Trajectory
+            const trace3D = {
                 type: 'scatter3d',
-                mode: 'lines+markers',
+                mode: 'lines',
                 x: x,
                 y: y,
                 z: z,
                 line: {
-                    color: colors,
+                    color: t,
                     colorscale: 'Viridis',
                     width: 6
                 },
                 marker: {
-                    size: 3,
-                    color: colors,
-                    colorscale: 'Viridis',
-                    showscale: true,
-                    colorbar: { title: colorbarTitle }
+                    size: 2,
+                    color: t,
+                    colorscale: 'Viridis'
                 },
-                name: 'Trajectory'
+                name: '轨迹'
             };
 
-            const trace2 = {
+            const currentPoint = {
                 type: 'scatter3d',
                 mode: 'markers',
                 x: [x[0]],
                 y: [y[0]],
                 z: [z[0]],
-                marker: { size: 8, color: 'green', symbol: 'diamond' },
-                name: 'Start'
-            };
-
-            const trace3 = {
-                type: 'scatter3d',
-                mode: 'markers',
-                x: [x[x.length-1]],
-                y: [y[y.length-1]],
-                z: [z[z.length-1]],
-                marker: { size: 8, color: 'red', symbol: 'square' },
-                name: 'End'
-            };
-
-            const traces = [trace1, trace2, trace3];
-
-            // 添加矢量
-            if (showVectors) {
-                const step = Math.floor(x.length / 15);
-                const vScale = 0.1;
-                const aScale = 0.05;
-
-                for (let i = 0; i < x.length; i += step) {
-                    // 速度矢量
-                    traces.push({
-                        type: 'scatter3d',
-                        mode: 'lines',
-                        x: [x[i], x[i] + vx[i]*vScale],
-                        y: [y[i], y[i] + vy[i]*vScale],
-                        z: [z[i], z[i] + vz[i]*vScale],
-                        line: { color: 'blue', width: 3 },
-                        showlegend: i === 0,
-                        name: 'Velocity'
-                    });
-
-                    // 加速度矢量
-                    traces.push({
-                        type: 'scatter3d',
-                        mode: 'lines',
-                        x: [x[i], x[i] + ax[i]*aScale],
-                        y: [y[i], y[i] + ay[i]*aScale],
-                        z: [z[i], z[i] + az[i]*aScale],
-                        line: { color: 'red', width: 3 },
-                        showlegend: i === 0,
-                        name: 'Acceleration'
-                    });
-                }
-            }
-
-            const layout = {
-                scene: {
-                    xaxis: { title: 'X (m)' },
-                    yaxis: { title: 'Y (m)' },
-                    zaxis: { title: 'Z (m)' },
-                    aspectmode: 'data'
+                marker: {
+                    size: 8,
+                    color: '#ef4444',
+                    symbol: 'diamond'
                 },
-                margin: { l: 0, r: 0, t: 30, b: 0 },
+                name: '当前位置'
+            };
+
+            const layout3D = {
                 paper_bgcolor: 'rgba(0,0,0,0)',
                 plot_bgcolor: 'rgba(0,0,0,0)',
-                showlegend: true,
-                legend: { x: 0, y: 1 }
+                margin: { l: 0, r: 0, t: 0, b: 0 },
+                scene: {
+                    xaxis: { title: 'X', gridcolor: '#334155', color: '#94a3b8' },
+                    yaxis: { title: 'Y', gridcolor: '#334155', color: '#94a3b8' },
+                    zaxis: { title: 'Z', gridcolor: '#334155', color: '#94a3b8' },
+                    bgcolor: 'rgba(0,0,0,0)',
+                    camera: { eye: { x: 1.5, y: 1.5, z: 1.2 } }
+                },
+                showlegend: false,
+                font: { color: '#e2e8f0' }
             };
 
-            Plotly.newPlot('plot3d', traces, layout, { responsive: true });
-        }
+            Plotly.newPlot('trajectoryPlot', [trace3D, currentPoint], layout3D, { responsive: true });
 
-        function updateStats() {
-            if (!currentData) return;
-            const { vMag, aMag, t } = currentData;
+            // Velocity Plot
+            const traceVx = { x: t, y: vx, mode: 'lines', name: 'vx', line: { color: '#60a5fa', width: 2 } };
+            const traceVy = { x: t, y: vy, mode: 'lines', name: 'vy', line: { color: '#34d399', width: 2 } };
+            const traceVz = { x: t, y: vz, mode: 'lines', name: 'vz', line: { color: '#a78bfa', width: 2 } };
+            const traceVMag = { x: t, y: vMag, mode: 'lines', name: '|v|', line: { color: '#f472b6', width: 3, dash: 'dash' } };
 
-            const maxV = Math.max(...vMag).toFixed(2);
-            const minV = Math.min(...vMag).toFixed(2);
-            const maxA = Math.max(...aMag).toFixed(2);
-            const avgV = (vMag.reduce((a,b) => a+b, 0) / vMag.length).toFixed(2);
-
-            // 计算轨迹长度
-            let length = 0;
-            for (let i = 1; i < currentData.x.length; i++) {
-                const dx = currentData.x[i] - currentData.x[i-1];
-                const dy = currentData.y[i] - currentData.y[i-1];
-                const dz = currentData.z[i] - currentData.z[i-1];
-                length += Math.sqrt(dx*dx + dy*dy + dz*dz);
-            }
-
-            const statsHtml = `
-                <div class="grid grid-cols-2 gap-2">
-                    <div>最大速度:</div><div class="text-right font-bold">${maxV} m/s</div>
-                    <div>最小速度:</div><div class="text-right font-bold">${minV} m/s</div>
-                    <div>平均速度:</div><div class="text-right font-bold">${avgV} m/s</div>
-                    <div>最大加速度:</div><div class="text-right font-bold">${maxA} m/s²</div>
-                    <div>轨迹长度:</div><div class="text-right font-bold">${length.toFixed(2)} m</div>
-                    <div>持续时间:</div><div class="text-right font-bold">${(t[t.length-1]-t[0]).toFixed(2)} s</div>
-                </div>
-            `;
-
-            document.getElementById('statsContent').innerHTML = statsHtml;
-            document.getElementById('stats').classList.remove('hidden');
-        }
-
-        function showAnalysis() {
-            if (!currentData) {
-                alert('请先生成轨迹');
-                return;
-            }
-
-            document.getElementById('analysisPanel').classList.remove('hidden');
-            const { t, vx, vy, vz, vMag, ax, ay, az, aMag } = currentData;
-
-            // 速度图
-            Plotly.newPlot('plotVelocity', [
-                { x: t, y: vx, name: 'vx', line: { color: '#1f77b4' } },
-                { x: t, y: vy, name: 'vy', line: { color: '#ff7f0e' } },
-                { x: t, y: vz, name: 'vz', line: { color: '#2ca02c' } },
-                { x: t, y: vMag, name: '|v|', line: { color: 'black', dash: 'dash' } }
-            ], {
-                title: '速度分量 vs 时间',
-                xaxis: { title: 'Time (s)' },
-                yaxis: { title: 'Velocity (m/s)' },
+            const layoutV = {
                 paper_bgcolor: 'rgba(0,0,0,0)',
-                plot_bgcolor: 'rgba(0,0,0,0)'
+                plot_bgcolor: 'rgba(0,0,0,0)',
+                margin: { l: 40, r: 20, t: 40, b: 40 },
+                xaxis: { title: '时间 t', gridcolor: '#334155', color: '#94a3b8' },
+                yaxis: { title: '速度', gridcolor: '#334155', color: '#94a3b8' },
+                legend: { x: 0, y: 1, bgcolor: 'rgba(30,41,59,0.8)', font: { color: '#e2e8f0' } },
+                font: { color: '#e2e8f0' }
+            };
+
+            Plotly.newPlot('velocityPlot', [traceVx, traceVy, traceVz, traceVMag], layoutV, { responsive: true });
+
+            // Acceleration Plot
+            const traceAx = { x: t, y: ax, mode: 'lines', name: 'ax', line: { color: '#60a5fa', width: 2 } };
+            const traceAy = { x: t, y: ay, mode: 'lines', name: 'ay', line: { color: '#34d399', width: 2 } };
+            const traceAz = { x: t, y: az, mode: 'lines', name: 'az', line: { color: '#a78bfa', width: 2 } };
+            const traceAMag = { x: t, y: aMag, mode: 'lines', name: '|a|', line: { color: '#f472b6', width: 3, dash: 'dash' } };
+
+            const layoutA = {
+                paper_bgcolor: 'rgba(0,0,0,0)',
+                plot_bgcolor: 'rgba(0,0,0,0)',
+                margin: { l: 40, r: 20, t: 40, b: 40 },
+                xaxis: { title: '时间 t', gridcolor: '#334155', color: '#94a3b8' },
+                yaxis: { title: '加速度', gridcolor: '#334155', color: '#94a3b8' },
+                legend: { x: 0, y: 1, bgcolor: 'rgba(30,41,59,0.8)', font: { color: '#e2e8f0' } },
+                font: { color: '#e2e8f0' }
+            };
+
+            Plotly.newPlot('accelerationPlot', [traceAx, traceAy, traceAz, traceAMag], layoutA, { responsive: true });
+        }
+
+        // Animation loop
+        function startAnimation() {
+            if (animationFrame) cancelAnimationFrame(animationFrame);
+            currentTimeIndex = 0;
+            isPlaying = true;
+            animate();
+        }
+
+        function animate() {
+            if (!trajectoryData || !isPlaying) return;
+
+            const { t, x, y, z, vMag, aMag } = trajectoryData;
+            
+            // Update current point in 3D plot
+            Plotly.animate('trajectoryPlot', {
+                data: [{ x: [x[currentTimeIndex]], y: [y[currentTimeIndex]], z: [z[currentTimeIndex]] }],
+                traces: [1],
+                layout: {}
+            }, {
+                transition: { duration: 0 },
+                frame: { duration: 0, redraw: false }
             });
 
-            // 加速度图
-            Plotly.newPlot('plotAcceleration', [
-                { x: t, y: ax, name: 'ax', line: { color: '#1f77b4' } },
-                { x: t, y: ay, name: 'ay', line: { color: '#ff7f0e' } },
-                { x: t, y: az, name: 'az', line: { color: '#2ca02c' } },
-                { x: t, y: aMag, name: '|a|', line: { color: 'black', dash: 'dash' } }
-            ], {
-                title: '加速度分量 vs 时间',
-                xaxis: { title: 'Time (s)' },
-                yaxis: { title: 'Acceleration (m/s²)' },
-                paper_bgcolor: 'rgba(0,0,0,0)',
-                plot_bgcolor: 'rgba(0,0,0,0)'
+            // Update metrics
+            document.getElementById('metricTime').textContent = t[currentTimeIndex].toFixed(2);
+            document.getElementById('metricVelocity').textContent = vMag[currentTimeIndex].toFixed(3);
+            document.getElementById('metricAcceleration').textContent = aMag[currentTimeIndex].toFixed(3);
+            
+            // Calculate path length up to current point
+            let currentPath = 0;
+            for (let i = 1; i <= currentTimeIndex; i++) {
+                const dx = x[i] - x[i-1];
+                const dy = y[i] - y[i-1];
+                const dz = z[i] - z[i-1];
+                currentPath += Math.sqrt(dx*dx + dy*dy + dz*dz);
+            }
+            document.getElementById('metricPath').textContent = currentPath.toFixed(2);
+
+            currentTimeIndex++;
+            if (currentTimeIndex >= t.length) {
+                currentTimeIndex = 0;
+            }
+
+            animationFrame = requestAnimationFrame(() => {
+                setTimeout(animate, 20); // Control animation speed
             });
         }
 
-        function exportData() {
-            if (!currentData) {
-                alert('没有可导出的数据');
-                return;
+        // Update data table
+        function updateTable() {
+            if (!trajectoryData) return;
+            
+            const tbody = document.getElementById('dataTableBody');
+            tbody.innerHTML = '';
+            
+            const { t, x, y, z, vMag, aMag } = trajectoryData;
+            const step = Math.floor(t.length / 10); // Show 10 rows
+            
+            for (let i = 0; i < t.length; i += step) {
+                const row = document.createElement('tr');
+                row.className = 'border-b border-slate-800 hover:bg-slate-800/50 transition-colors';
+                row.innerHTML = `
+                    <td class="py-2 text-blue-400">${t[i].toFixed(2)}</td>
+                    <td class="py-2">${x[i].toFixed(3)}</td>
+                    <td class="py-2">${y[i].toFixed(3)}</td>
+                    <td class="py-2">${z[i].toFixed(3)}</td>
+                    <td class="py-2 text-green-400">${vMag[i].toFixed(3)}</td>
+                    <td class="py-2 text-purple-400">${aMag[i].toFixed(3)}</td>
+                `;
+                tbody.appendChild(row);
             }
-
-            const { t, x, y, z, vx, vy, vz, vMag, ax, ay, az, aMag } = currentData;
-            let csv = 't,x,y,z,vx,vy,vz,v_mag,ax,ay,az,a_mag\n';
-
-            for (let i = 0; i < t.length; i++) {
-                csv += `${t[i]},${x[i]},${y[i]},${z[i]},${vx[i]},${vy[i]},${vz[i]},${vMag[i]},${ax[i]},${ay[i]},${az[i]},${aMag[i]}\n`;
-            }
-
-            const blob = new Blob([csv], { type: 'text/csv' });
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'trajectory_data.csv';
-            a.click();
         }
 
-        // 初始化
-        window.onload = () => {
+        // Preset trajectories
+        function loadPreset(type) {
+            const presets = {
+                helix: { x: 'cos(t)', y: 'sin(t)', z: '0.2*t', T: 20, N: 500 },
+                lissajous: { x: 'sin(2*t)', y: 'sin(3*t)', z: 'sin(5*t)', T: 20, N: 1000 },
+                torus: { x: '(3+cos(5*t))*cos(t)', y: '(3+cos(5*t))*sin(t)', z: 'sin(5*t)', T: 20, N: 1000 },
+                rose: { x: 'cos(t)*cos(3*t)', y: 'sin(t)*cos(3*t)', z: 'sin(3*t)', T: 20, N: 1000 },
+                damped: { x: 'exp(-0.1*t)*cos(t)', y: 'exp(-0.1*t)*sin(t)', z: '0.1*t', T: 30, N: 1000 },
+                chaos: { x: 'sin(t)*(exp(cos(t))-2*cos(4*t)-sin(t/12)^5)', y: 'cos(t)*(exp(cos(t))-2*cos(4*t)-sin(t/12)^5)', z: 'sin(t/3)', T: 50, N: 2000 }
+            };
+
+            const p = presets[type];
+            document.getElementById('inputX').value = p.x;
+            document.getElementById('inputY').value = p.y;
+            document.getElementById('inputZ').value = p.z;
+            document.getElementById('inputT').value = p.T;
+            document.getElementById('inputN').value = p.N;
+
+            // Update active state
+            document.querySelectorAll('.preset-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+
             calculateTrajectory();
-        };
+        }
+
+        // Reset view
+        function resetView() {
+            if (trajectoryData) {
+                Plotly.relayout('trajectoryPlot', {
+                    'scene.camera': { eye: { x: 1.5, y: 1.5, z: 1.2 } }
+                });
+            }
+        }
+
+        // Export data as JSON
+        function exportData() {
+            if (!trajectoryData) return;
+            
+            const dataStr = JSON.stringify(trajectoryData, null, 2);
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(dataBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'trajectory_data.json';
+            link.click();
+        }
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            Plotly.Plots.resize('trajectoryPlot');
+            Plotly.Plots.resize('velocityPlot');
+            Plotly.Plots.resize('accelerationPlot');
+        });
     </script>
 </body>
 </html>
